@@ -17,6 +17,8 @@ from task._utils.model_client import DialModelClient
 #  4. Upload file with client
 #  5. Return Attachment object with title (file name), url and type (mime type)
 async def _put_image() -> Attachment:
+    """upload image to the bucket and return image data"""
+
     file_name = "dialx-banner.png"
     image_path = Path(__file__).parent.parent.parent / file_name
     mime_type_png = "image/png"

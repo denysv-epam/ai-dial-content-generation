@@ -1,20 +1,26 @@
 import asyncio
+import mimetypes
 from datetime import datetime
 
 from task._models.custom_content import Attachment
-from task._utils.constants import API_KEY, DIAL_URL, DIAL_CHAT_COMPLETIONS_ENDPOINT
-from task._utils.bucket_client import DialBucketClient
-from task._utils.model_client import DialModelClient
 from task._models.message import Message
 from task._models.role import Role
+from task._utils.bucket_client import DialBucketClient
+from task._utils.constants import API_KEY, DIAL_CHAT_COMPLETIONS_ENDPOINT, DIAL_URL
+from task._utils.model_client import DialModelClient
+
+mime_type = "text/plain"
+exts = mimetypes.guess_all_extensions(mime_type)  # e.g., [".txt", ".text"]
+
 
 class Size:
     """
     The size of the generated image.
     """
-    square: str = '1024x1024'
-    height_rectangle: str = '1024x1792'
-    width_rectangle: str = '1792x1024'
+
+    square: str = "1024x1024"
+    height_rectangle: str = "1024x1792"
+    width_rectangle: str = "1792x1024"
 
 
 class Style:
@@ -23,6 +29,7 @@ class Style:
      - Vivid causes the model to lean towards generating hyper-real and dramatic images.
      - Natural causes the model to produce more natural, less hyper-real looking images.
     """
+
     natural: str = "natural"
     vivid: str = "vivid"
 
@@ -32,26 +39,64 @@ class Quality:
     The quality of the image that will be generated.
      - ‘hd’ creates images with finer details and greater consistency across the image.
     """
+
     standard: str = "standard"
     hd: str = "hd"
 
+
+# TODO:
+#  1. Create DIAL bucket client
+#  2. Iterate through Images from attachments, download them and then save here
+#  3. Print confirmation that image has been saved locally
 async def _save_images(attachments: list[Attachment]):
-    # TODO:
-    #  1. Create DIAL bucket client
-    #  2. Iterate through Images from attachments, download them and then save here
-    #  3. Print confirmation that image has been saved locally
-    raise NotImplementedError
+    """Download generated image"""
+
+    async with DialBucketClient(api_key=API_KEY, base_url=DIAL_URL) as bucket_client:
+        for attachment in attachments:
+            if attachment.url:
+                image_data = await bucket_client.get_file(attachment.url)
+                if attachment.type:
+                    extension = mimetypes.guess_extension(attachment.type)
+                    if not extension:
+                        raise ValueError(f"Unsupported MIME type: {attachment.type}")
+
+                    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+                    filename = f"{timestamp}{extension}"
+
+                    with open(filename, "wb") as file:
+                        file.write(image_data)
+
+                    print(f"Image saved: {filename}")
 
 
+# TODO:
+#  1. Create DialModelClient
+#  2. Generate image for "Sunny day on Bali"
+#  3. Get attachments from response and save generated message (use method `_save_images`)
+#  4. Try to configure the picture for output via `custom_fields` parameter.
+#    - Documentation: See `custom_fields`. https://dialx.ai/dial_api#operation/sendChatCompletionRequest
+#  5. Test it with the 'imagegeneration@005' (Google image generation model)
 def start() -> None:
-    # TODO:
-    #  1. Create DialModelClient
-    #  2. Generate image for "Sunny day on Bali"
-    #  3. Get attachments from response and save generated message (use method `_save_images`)
-    #  4. Try to configure the picture for output via `custom_fields` parameter.
-    #    - Documentation: See `custom_fields`. https://dialx.ai/dial_api#operation/sendChatCompletionRequest
-    #  5. Test it with the 'imagegeneration@005' (Google image generation model)
-    raise NotImplementedError
+    client = DialModelClient(
+        deployment_name="dall-e-3",
+        api_key=API_KEY,
+        endpoint=DIAL_CHAT_COMPLETIONS_ENDPOINT,
+    )
+
+    message = Message(role=Role.USER, content="Sunny day on Bali")
+
+    res = client.get_completion(
+        messages=[message],
+        custom_fields={
+            "size": Size.square,
+            "style": Style.vivid,
+            "quality": Quality.hd,
+        },
+    )
+
+    if custom_content := res.custom_content:
+        if attachments := custom_content.attachments:
+            asyncio.run(_save_images(attachments))
 
 
 start()

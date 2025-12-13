@@ -4,12 +4,8 @@ from pathlib import Path
 from task._models.role import Role
 from task._utils.constants import API_KEY, DIAL_CHAT_COMPLETIONS_ENDPOINT
 from task._utils.model_client import DialModelClient
-from task.image_to_text.openai.message import (
-    ContentedMessage,
-    ImgContent,
-    ImgUrl,
-    TxtContent,
-)
+from task.image_to_text.openai.message import (ContentedMessage, ImgContent,
+                                               ImgUrl, TxtContent)
 
 
 def start() -> None:
